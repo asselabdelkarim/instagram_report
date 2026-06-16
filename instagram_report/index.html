@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal &amp; Noise — Instagram Performance Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="chart.umd.js"></script>
+<style>
+  :root{
+    --bg: #131210;
+    --surface: #1c1a16;
+    --surface-2: #242220;
+    --border: rgba(244,241,234,0.08);
+    --text: #f4f1ea;
+    --text-mid: #c7c2b6;
+    --text-dim: #8e887b;
+
+    --low: #5d7a91;
+    --medium: #84ad9b;
+    --high: #f0b94e;
+    --viral: #ff5d3c;
+
+    --spectrum: linear-gradient(90deg, var(--low) 0%, var(--medium) 33%, var(--high) 66%, var(--viral) 100%);
+
+    --maxw: 1180px;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 85% -10%, rgba(255,93,60,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at -10% 20%, rgba(132,173,155,0.08), transparent 60%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,h2,h3,h4{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .mono{ font-family: 'IBM Plex Mono', monospace; }
+
+  .wrap{
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    border-bottom: 1px solid var(--border);
+    padding: 22px 0;
+  }
+  .topbar .wrap{
+    display:flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: 0.01em;
+  }
+  .brand span{ color: var(--viral); }
+  .topbar nav{
+    display:flex; gap: 22px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+  .topbar nav a{ color: var(--text-dim); text-decoration:none; transition: color .15s; }
+  .topbar nav a:hover{ color: var(--text); }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    padding: 76px 0 56px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+  }
+  .hero h1{
+    font-size: clamp(2.4rem, 5.5vw, 4.4rem);
+    line-height: 1.04;
+    max-width: 13ch;
+  }
+  .hero h1 em{
+    font-style: italic;
+    background: var(--spectrum);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p.lede{
+    margin-top: 24px;
+    max-width: 56ch;
+    font-size: 1.08rem;
+    color: var(--text-mid);
+  }
+
+  .spectrum-bar{
+    margin-top: 40px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--spectrum);
+    position: relative;
+  }
+  .spectrum-labels{
+    display:flex; justify-content: space-between;
+    margin-top: 10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+  .spectrum-labels span:nth-child(1){ color: var(--low); }
+  .spectrum-labels span:nth-child(2){ color: var(--medium); }
+  .spectrum-labels span:nth-child(3){ color: var(--high); }
+  .spectrum-labels span:nth-child(4){ color: var(--viral); }
+
+  /* ---------- KPI strip ---------- */
+  .kpi-strip{
+    padding: 40px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .kpi-grid{
+    display:grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .kpi{
+    background: var(--surface);
+    padding: 22px 18px;
+  }
+  .kpi .val{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.9rem;
+    line-height: 1.1;
+  }
+  .kpi .label{
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  @media (max-width: 920px){
+    .kpi-grid{ grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ---------- Sections ---------- */
+  section.block{
+    padding: 64px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  section.block:last-of-type{ border-bottom: none; }
+
+  .section-head{
+    display:flex; justify-content: space-between; align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  .section-head .num{
+    font-family:'IBM Plex Mono', monospace;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+  }
+  .section-head h2{
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    margin-top: 6px;
+  }
+  .section-head .desc{
+    max-width: 42ch;
+    color: var(--text-mid);
+    font-size: 0.95rem;
+  }
+
+  /* ---------- Cards & grids ---------- */
+  .grid-2{ display:grid; grid-template-columns: 1.3fr 1fr; gap: 22px; }
+  .grid-3{ display:grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+  .grid-4{ display:grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  @media (max-width: 920px){
+    .grid-2, .grid-3, .grid-4{ grid-template-columns: 1fr; }
+  }
+
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .card h3{
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .card .sub{
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .chart-box{ position: relative; }
+
+  /* bucket cards */
+  .bucket-card{
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 20px;
+    border-top: 4px solid var(--c);
+  }
+  .bucket-card.low{ --c: var(--low); }
+  .bucket-card.medium{ --c: var(--medium); }
+  .bucket-card.high{ --c: var(--high); }
+  .bucket-card.viral{ --c: var(--viral); }
+  .bucket-card .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--c);
+  }
+  .bucket-card .big{
+    font-family:'Fraunces', serif;
+    font-size: 2.1rem;
+    font-weight: 600;
+    margin: 8px 0 14px;
+  }
+  .bucket-card .metrics{
+    display:grid; grid-template-columns: 1fr 1fr; gap: 8px 14px;
+    font-size: 0.82rem;
+    color: var(--text-mid);
+  }
+  .bucket-card .metrics b{ color: var(--text); font-family:'IBM Plex Mono', monospace; font-weight: 500; }
+
+  /* tables */
+  table{ width:100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td{ text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  th{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  td.num, th.num{ text-align: right; font-family:'IBM Plex Mono', monospace; }
+  tr:last-child td{ border-bottom: none; }
+  .pill{
+    display:inline-block; padding: 2px 9px; border-radius: 20px;
+    font-family:'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pill.viral{ background: rgba(255,93,60,0.16); color: var(--viral); }
+  .pill.high{ background: rgba(240,185,78,0.16); color: var(--high); }
+  .pill.medium{ background: rgba(132,173,155,0.16); color: var(--medium); }
+  .pill.low{ background: rgba(93,122,145,0.18); color: var(--low); }
+
+  /* heatmap */
+  .heatmap-wrap{ overflow-x: auto; padding-bottom: 4px; }
+  .heatmap{
+    display:grid;
+    grid-template-columns: 60px repeat(24, 28px);
+    gap: 3px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    min-width: 760px;
+  }
+  .heatmap .corner{ }
+  .heatmap .hh{ text-align:center; padding-bottom:4px; }
+  .heatmap .dlabel{ display:flex; align-items:center; padding-right:6px; }
+  .heatmap .cell{
+    aspect-ratio: 1;
+    border-radius: 3px;
+  }
+
+  /* takeaways */
+  .takeaways{ display:grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+  @media (max-width: 920px){ .takeaways{ grid-template-columns: 1fr; } }
+  .takeaway{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .takeaway .idx{
+    font-family:'IBM Plex Mono', monospace;
+    color: var(--viral);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .takeaway h4{ font-size: 1.05rem; margin-bottom: 8px; }
+  .takeaway p{ color: var(--text-mid); font-size: 0.9rem; margin:0; }
+
+  footer{
+    padding: 40px 0 60px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+  footer .wrap{ display:flex; justify-content: space-between; flex-wrap:wrap; gap: 12px; }
+
+  legend.chartlegend{
+    font-size: 0.78rem; color: var(--text-dim); margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">signal<span>&amp;</span>noise — Instagram Report</div>
+    <nav>
+      <a href="#performance">Performance</a>
+      <a href="#content">Content</a>
+      <a href="#timing">Timing</a>
+      <a href="#drivers">Drivers</a>
+      <a href="#accounts">Accounts</a>
+      <a href="#takeaways">Takeaways</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Analytics Report · Nov 2024 – Nov 2025 · 20 accounts</div>
+    <h1>What actually separates a <em>viral</em> post from a quiet one.</h1>
+    <p class="lede">
+      A statistical deep dive into 29,999 Instagram posts across 20 creator and brand accounts —
+      covering format, timing, captions, hashtags, and the metrics that quietly decide
+      whether a post gets buried or breaks out.
+    </p>
+    <div class="spectrum-bar"></div>
+    <div class="spectrum-labels">
+      <span>Low</span><span>Medium</span><span>High</span><span>Viral</span>
+    </div>
+  </div>
+</header>
+
+<section class="kpi-strip">
+  <div class="wrap">
+    <div class="kpi-grid">
+      <div class="kpi"><div class="val">29,999</div><div class="label">Posts analyzed</div></div>
+      <div class="kpi"><div class="val">20</div><div class="label">Accounts tracked</div></div>
+      <div class="kpi"><div class="val">4.21%</div><div class="label">Avg. engagement rate</div></div>
+      <div class="kpi"><div class="val">188.2M</div><div class="label">Total reach</div></div>
+      <div class="kpi"><div class="val">15.1M</div><div class="label">Followers gained</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PERFORMANCE -->
+<section class="block" id="performance">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">01 / Performance Spectrum</div>
+        <h2>Engagement rate is a spectrum — and the gap is enormous.</h2>
+      </div>
+      <div class="desc">
+        Every post in the dataset is tagged into one of four performance buckets.
+        The spread between the bottom and top quartile isn't subtle: viral posts
+        engage at <b>4x</b> the rate of low performers.
+      </div>
+    </div>
+
+    <div class="grid-4" id="bucket-cards"></div>
+
+    <div class="grid-2" style="margin-top:22px;">
+      <div class="card chart-box">
+        <h3>Engagement rate distribution</h3>
+        <div class="sub">Share of posts across engagement rate bands (0–10%)</div>
+        <canvas id="chart-hist" height="220"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>What viral posts do differently</h3>
+        <div class="sub">Average interactions per post, by performance bucket</div>
+        <canvas id="chart-bucket-metrics" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<section class="block" id="content">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">02 / Content &amp; Format</div>
+        <h2>Format and topic move the needle — but only slightly.</h2>
+      </div>
+      <div class="desc">
+        Across formats and categories, average engagement sits in a tight
+        4.1%–4.3% band. The differences are real but small — meaning <i>what</i>
+        you post matters far less than <i>how it performs once it's live</i>.
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card chart-box">
+        <h3>Avg. engagement by content category</h3>
+        <div class="sub">10 categories, ranked highest to lowest</div>
+        <canvas id="chart-category" height="280"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>Avg. engagement by media type</h3>
+        <div class="sub">Reels, carousels and single images</div>
+        <canvas id="chart-mediatype" height="280"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:22px;">
+      <div class="card chart-box">
+        <h3>"Viral" rate by category</h3>
+        <div class="sub">Share of a category's posts landing in the top performance bucket</div>
+        <canvas id="chart-viralrate" height="240"></canvas>
+      </div>
+      <div class="card">
+        <h3>Top &amp; bottom format × category combos</h3>
+        <div class="sub">By average engagement rate</div>
+        <div class="grid-2" style="gap:14px;">
+          <div>
+            <div class="pill viral" style="margin-bottom:8px;">Top 5</div>
+            <table id="table-top-combos"></table>
+          </div>
+          <div>
+            <div class="pill low" style="margin-bottom:8px;">Bottom 5</div>
+            <table id="table-bottom-combos"></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TIMING -->
+<section class="block" id="timing">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">03 / Timing</div>
+        <h2>The best time to post is... almost any time.</h2>
+      </div>
+      <div class="desc">
+        Mapping average engagement across every hour and day reveals a remarkably
+        even field — with a few mild bright spots worth noting.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Engagement heatmap — day of week × hour posted</h3>
+      <div class="sub">Darker / warmer cells = higher average engagement rate</div>
+      <div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
+      <div class="chartlegend">Each cell is the average engagement rate (%) for posts published in that hour/day combination.</div>
+    </div>
+
+    <div class="grid-2" style="margin-top:22px;">
+      <div class="card chart-box">
+        <h3>Engagement by day of week</h3>
+        <canvas id="chart-day" height="220"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>Engagement by hour of day</h3>
+        <canvas id="chart-hour" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DRIVERS -->
+<section class="block" id="drivers">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">04 / What Drives Engagement</div>
+        <h2>Captions, hashtags, CTAs — and what correlates with what.</h2>
+      </div>
+      <div class="desc">
+        Engagement rate correlates strongly with raw interactions (likes, saves,
+        comments, shares) — and barely at all with follower count, hashtag volume,
+        or caption length.
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card chart-box">
+        <h3>Correlation with engagement rate</h3>
+        <div class="sub">Pearson correlation coefficient, selected metrics</div>
+        <canvas id="chart-correlation" height="260"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>Caption length vs. engagement</h3>
+        <div class="sub">Average engagement rate by caption length band</div>
+        <canvas id="chart-caption" height="260"></canvas>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:22px;">
+      <div class="card chart-box">
+        <h3>Hashtag count</h3>
+        <div class="sub">Avg. engagement by # of hashtags</div>
+        <canvas id="chart-hashtags" height="200"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>Call-to-action</h3>
+        <div class="sub">With vs. without an explicit CTA</div>
+        <canvas id="chart-cta" height="200"></canvas>
+      </div>
+      <div class="card chart-box">
+        <h3>Follower count tier</h3>
+        <div class="sub">Avg. engagement by account size</div>
+        <canvas id="chart-followers" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ACCOUNTS -->
+<section class="block" id="accounts">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">05 / Account Leaderboard</div>
+        <h2>20 accounts, one year — who's winning?</h2>
+      </div>
+      <div class="desc">
+        Ranked by average engagement rate across all of an account's posts in the period.
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Full account leaderboard</h3>
+        <div class="sub">Sorted by average engagement rate, descending</div>
+        <div style="max-height:480px; overflow:auto;">
+          <table id="table-accounts"></table>
+        </div>
+      </div>
+      <div class="card chart-box">
+        <h3>Monthly trend</h3>
+        <div class="sub">Average engagement rate &amp; post volume, Nov 2024 – Nov 2025</div>
+        <canvas id="chart-monthly" height="420"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TAKEAWAYS -->
+<section class="block" id="takeaways">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="num">06 / Key Takeaways</div>
+        <h2>So what should a content team actually do?</h2>
+      </div>
+    </div>
+    <div class="takeaways">
+      <div class="takeaway">
+        <div class="idx">01</div>
+        <h4>Optimize for saves and shares, not just likes</h4>
+        <p>Saves and shares scale up most sharply between the "low" and "viral" buckets
+        (saves: 17.7 → 66.2, shares: 5.9 → 22.5) — both signal content worth returning to
+        or passing on, and both correlate strongly with overall engagement rate.</p>
+      </div>
+      <div class="takeaway">
+        <div class="idx">02</div>
+        <h4>Don't over-engineer hashtags or captions</h4>
+        <p>Engagement is essentially flat across hashtag counts (4–12 tags) and caption
+        lengths (90–150 characters). The only dips appear at the extremes — very short
+        captions (&lt;90 chars) and very long ones (150+), and at 13+ hashtags.</p>
+      </div>
+      <div class="takeaway">
+        <div class="idx">03</div>
+        <h4>CTAs and follower count aren't the lever you think</h4>
+        <p>Explicit calls-to-action show no measurable lift (4.19% vs 4.22% without),
+        and account size barely correlates with engagement rate (r = -0.006) — smaller
+        accounts engage their audiences just as effectively as larger ones.</p>
+      </div>
+      <div class="takeaway">
+        <div class="idx">04</div>
+        <h4>Reels and Fashion/Music/Fitness content have a slight edge</h4>
+        <p>Reels post the highest average engagement of the three formats (4.23%), and
+        Fashion, Music and Fitness content lead the category rankings — modest advantages,
+        but consistent enough to inform a content mix.</p>
+      </div>
+      <div class="takeaway">
+        <div class="idx">05</div>
+        <h4>Posting time is a minor lever — Tue/Fri/Sun edge out</h4>
+        <p>Tuesday, Friday and Sunday post slightly higher average engagement than
+        Wednesday or Monday, and early hours (2–3am, 8am) show small bumps — but the
+        overall spread across the week is under half a percentage point.</p>
+      </div>
+      <div class="takeaway">
+        <div class="idx">06</div>
+        <h4>The real signal is the bucket, not the brief</h4>
+        <p>Format, topic, timing and captions explain only a sliver of the variance.
+        The dominant factor remains whatever drives a post into the "high" or "viral"
+        bucket in the first place — likely creative quality, hook strength, and timing
+        relative to audience activity that this dataset doesn't fully capture.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Data: Instagram_Analytics.csv · 29,999 posts · 20 accounts · Nov 2024–Nov 2025</div>
+    <div>Built with Python (pandas) &amp; Chart.js</div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="charts.js"></script>
+</body>
+</html>
